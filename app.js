@@ -1,8 +1,11 @@
 const express = require("express");
 const bodyParser = require("body-parser");
+const path = require("path");
+const { ApolloServer } = require("apollo-server-express");
 
 const dbHandler = require("./connections");
 const userRouter = require("./userRouter")(dbHandler);
+const { typeDefs, resolvers } = require("./graphql");
 
 const app = express();
 let server = null;
@@ -16,8 +19,17 @@ const signals = {
 
 app.use(bodyParser.json());
 
+// Serve React app for any other route
+//app.use(express.static(path.join(__dirname, "build")));
+
 //  userRouter for '/user' path
 app.use("/user", userRouter);
+
+// Create an Apollo Server instance
+const apolloServer = new ApolloServer({
+  typeDefs,
+  resolvers,
+});
 
 const connectDatabase = async () => {
   try {
@@ -32,6 +44,11 @@ const startServer = async () => {
   try {
     await connectDatabase();
     console.log("Database connected  successfully");
+    // Start the Apollo Server
+    await apolloServer.start();
+
+    // Apply the Apollo Server middleware
+    apolloServer.applyMiddleware({ app, path: "/graphql" });
 
     server = app.listen({ port }, () =>
       console.log(`Server listening at port: ${port}`)
